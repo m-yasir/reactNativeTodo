@@ -1,4 +1,4 @@
-package com.todoapp;
+package com.todo;
 
 import com.facebook.react.ReactActivity;
 
