@@ -7,9 +7,9 @@
  */
 
 import React, { Component } from 'react';
-import { Platform, StyleSheet, Text, View, StatusBar, Animated, FlatList } from 'react-native';
-import { Button, Icon, Left, Container, Header, Footer, Body, Right, Input, Item, Label, List, ListItem } from 'native-base';
-
+import { Platform, StyleSheet, Text, StatusBar, Animated, FlatList, Dimensions } from 'react-native';
+import { Button, Icon, Left, View, Container, Header, Footer, Body, Right, Input, Item, Label, List, ListItem, Card, CardItem, Fab, Content } from 'native-base';
+import Dialog from "react-native-dialog";
 import styles from './styles';
 
 const instructions = Platform.select({
@@ -18,6 +18,11 @@ const instructions = Platform.select({
     'Double tap R on your keyboard to reload,\n' +
     'Shake for dev menu',
 });
+
+const dimesions = {
+  height: Dimensions.get('window').height,
+  width: Dimensions.get('window').width
+};
 
 type Props = {};
 
@@ -50,62 +55,98 @@ class DynamicListRow extends Component {
 
 }
 
-let data = [
-  {
-    id: 1,
-    task: "task1"
-  },
-  {
-    id: 2,
-    task: "task2"
-  }
-]
-
 export default class App extends Component<Props> {
 
-  idCounter;
+  todos = [];
 
   constructor (props) {
     super(props);
     this.state = {
-      add: false,
-      refreshing: false,
-      todoValue: ''
+      isLoading: true,
+      isModalVisible: false
     };
-    idCounter = data[data.length - 1].id;
   }
 
-  // rotateAnimation() {
-  //   return Animated.timing(
-  //     this.state.rotate,
-  //     {
-  //       toValue: 360,
-  //       duration: 1000data
-  //     }
-  //   );
-  // }
+  componentDidMount() {
+    setTimeout(() => {
+      this.todos = [
+        {
+          id: "1",
+          task: "task1"
+        },
+        {
+          id: "2",
+          task: "task2"
+        }
+      ];
+      this.setState({
+        isLoading: false
+      })
+    }, 1000);
+  }
 
-  addTodo = (task) => {
-    this.idCounter += 1;
-    data.push({
-      id: this.idCounter,
-      task: task
+  toggleAddModal = () => {
+    this.setState((state) => ({
+      isModalVisible: !state.isModalVisible
+    }));
+  }
+
+  toggleLoader = async () => {
+    return this.setState((state) => ({
+      isLoading: !state.isLoading
+    }));
+  }
+
+  addTodo = async (task) => {
+    await this.toggleLoader();
+    this.todos.push({
+      id: this.todos.length.toString(),
+      task
     });
-    console.warn(data);
-    this.toggleAdd();
+    this.toggleAddModal();
+    this.toggleLoader();
   }
 
-  toggleAdd = () => {
-    this.setState((state, props) => ({add: !state.add}));
-    // rotateAnimation().start();
+  removeTodo = async (index) => {
+    await this.toggleLoader();
+    this.todos.splice(index, 1);
+    this.toggleLoader();
   }
 
-  _renderList( { item } ) {
+  _renderTodos({todo, index}) {
     return (
-      <DynamicListRow>
-        <Text>{item.task}</Text>
-      </DynamicListRow>
-    );
+      <ListItem>
+        <View style={{flex: 1, justifyContent: "space-between", flexDirection: "row"}}>
+          <Text style={{color: "black", textAlignVertical: "center"}}>{todo.task}</Text>
+          <Button transparent onPress={() => this.removeTodo(index)}>
+            <Icon name="close" />
+          </Button>
+        </View>
+      </ListItem>
+    )
+  }
+
+  consoleStuff = (value) => {
+    console.warn(value);
+  }
+
+  _renderAddModal() {
+    let task = null;
+    return (
+      <View>
+        <Dialog.Container visible={this.state.isModalVisible}>
+          <Dialog.Title>
+            Add Todo
+          </Dialog.Title>
+          <Dialog.Description>
+            Fill in the field(s) and click add
+          </Dialog.Description>
+          <Dialog.Input onChangeText={(v) => (task = v)} label="Task"></Dialog.Input>
+          <Dialog.Button label="Cancel" onPress={this.toggleAddModal} />
+          <Dialog.Button label="Add" onPress={() => (task && this.addTodo(task))} />
+        </Dialog.Container>
+      </View>
+    )
   }
 
   render() {
@@ -121,40 +162,17 @@ export default class App extends Component<Props> {
           <Right></Right>
         </Header>
           {/* Add picture for Todo */}
-        <View style={{ display: 'flex', flexDirection: 'row', width: '100%' }}>
-          {this.state.add ? <Left>
-            <Item stackedLabel>
-              <Label>Task</Label>
-              <Input onChangeText={(v) => this.setState({
-                todoValue: v
-              })} />
-            </Item>
-          </Left> : null}
-          <Right style={{ padding: 10 }}>
-            {!this.state.add ?
-              <Button rounded primary onPress={this.toggleAdd}>
-                <Icon type="MaterialIcons" name="add" style={{fontSize: 18}}></Icon>
-              </Button>
-              :
-              <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Button rounded secondary onPress={() => this.addTodo(this.state.todoValue)}>
-                  <Icon name="check" type="AntDesign" style={{fontSize: 18}}></Icon>
-                </Button>
-                <Button rounded secondary onPress={this.toggleAdd}>
-                  <Icon name="close" />
-                </Button>
-              </View>}
-          </Right>
-        </View>
-        <View>
-         <List dataArray={data} renderRow={
-           item => 
-           <ListItem>
-             <Text>{item.task}</Text>
-           </ListItem>
-         } />
-        </View>
-        {/*
+          {this._renderAddModal()}
+        <Content padder>
+          <View>
+            {
+              this.state.isLoading ? <Text>Loading Data...</Text> : 
+              <FlatList data={this.todos} keyExtractor={(item) => item.id} renderItem={
+                ({item, index}) => this._renderTodos({todo: item, index})
+              } />
+            }
+          </View>
+          {/*
         <View style={styles.container}>
            <Text style={styles.welcome}>Welcome to React Native!</Text>
           <Text style={styles.instructions}>To get started, edit App.js</Text>
@@ -173,6 +191,15 @@ export default class App extends Component<Props> {
           </View> 
         </View>
         */}
+        </Content>
+        <Fab
+            active={true}
+            direction={"up"}
+            position="bottomRight"
+            containerStyle={{marginBottom: 25}}
+            style={{backgroundColor: "#4646dc"}}
+            onPress={() => this.toggleAddModal()}
+          ><Icon name="add" /></Fab>
         <Footer style={styles.footer}>
         </Footer>
       </Container>
